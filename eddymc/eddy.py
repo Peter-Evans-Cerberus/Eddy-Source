@@ -30,11 +30,12 @@ Alternatively, main() can be called directly by another module and provided with
 """
 
 # Imports from standard library
+import re
 import os.path
 import argparse
 from tkinter import Tk, simpledialog
 from tkinter.filedialog import askopenfilename
-
+from jinja2 import escape
 # Local imports
 if __name__ == "__main__":
     from scale import scale_html_writer
@@ -74,7 +75,7 @@ def main(filename=None, scaling_factor=None):
             scaling_factor=scaling_factor,
         )
         html = scale_html_writer.get_html(case)
-    elif 'Code Name & Version = MCNP' in output_data[0]:
+    elif 'Code Name &amp; Version = MCNP' in output_data[0]:
         case = EddyMCNPCase(
             filepath=filename,
             scaling_factor=scaling_factor,
@@ -159,7 +160,26 @@ def read_file(filename):
     """
     with open(filename, 'r') as file:
         data = file.readlines()
+    data = sanitize_list(data)
     return data
+
+
+def sanitize_list(text):
+    """Replace any html control characters in any string in the
+    list with the appropriate html codes to stop
+    them from being interpreted as html tags.
+
+    Args:
+        text [list]: a list of strings
+
+    Returns:
+        list: The sanitized version of the list
+    """
+    sanitized_text = []
+    for line in text:
+        line = str(escape(line))
+        sanitized_text.append(line)
+    return sanitized_text
 
 
 def check_if_crit(output_data):
@@ -172,8 +192,9 @@ def check_if_crit(output_data):
         True if kcode found or False if not.
 
     """
+    PATTERN_crit = re.compile(r"\s+\d+-\s{7}(kcode).*")
     for line in output_data:
-        if 'kcode' in line.lower():
+        if re.match(PATTERN_crit, line):
             return True
     return False
 
